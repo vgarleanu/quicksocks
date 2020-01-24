@@ -1,0 +1,21 @@
+[package]
+name = "quicksockets"
+version = "0.1.0"
+authors = ["Valerian Garleanu <valerian.garleanu@protonmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustls = "0.16.0"
+tokio = { version="0.2.10", features=["tcp", "macros", "full"] }
+tokio-rustls = "0.12.2"
+async-trait = "0.1.22"
+tokio-io = "0.1.12"
+httparse = "1.3.4"
+rust-crypto = "0.2.36"
+base64 = "0.11.0"
+tokio-util = { version = "0.2.0", features=["codec"] }
+bytes = "0.5.4"
+futures = "0.3.1"
+byteorder = "1.3.2"
