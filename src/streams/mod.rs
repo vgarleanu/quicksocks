@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub mod tcp;
+pub mod ssl;
 
 #[async_trait]
 pub trait Stream: Send + Sync
