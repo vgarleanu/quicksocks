@@ -1,15 +1,17 @@
-use crate::frame::WebsocketFrame;
-use crate::streams::Stream;
-use crate::{streams::tcp, TcpStream};
+use crate::{
+    frame::WebsocketFrame,
+    streams::{tcp, Stream},
+    TcpStream,
+};
 use futures::SinkExt;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::prelude::*;
-use tokio::stream::StreamExt;
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    stream::StreamExt,
+};
 use tokio_util::codec::Framed;
-use tokio_util::codec::Encoder;
 
 pub struct Websocket<T, R, F>
 where
