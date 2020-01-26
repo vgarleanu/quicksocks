@@ -10,7 +10,7 @@ CA_SUBJECT="/C=UK/O=Dim CA/CN=Dim Labs CA"
 SUBJECT="/C=UK/O=Dim/CN=localhost"
 ALT="DNS:localhost"
 
-openssl genrsa -out ca_key.pem 4096
+openssl genrsa -out ca_key.pem 8192
 openssl req -new -x509 -days 3650 -key ca_key.pem -subj "${CA_SUBJECT}" -out ca_cert.pem
 
 openssl req -newkey rsa:4096 -nodes -sha256 -keyout key.pem -subj "${SUBJECT}" -out server.csr

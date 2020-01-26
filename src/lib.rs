@@ -6,10 +6,9 @@ pub mod streams;
 pub mod websocket;
 
 pub use tokio::net;
-pub use tokio_rustls::server;
 
 pub type TcpStream = net::TcpStream;
-pub type SslStream = server::TlsStream<TcpStream>;
+pub type SslStream = tokio_tls::TlsStream<TcpStream>;
 
 #[async_trait]
 pub trait SocketCallback {

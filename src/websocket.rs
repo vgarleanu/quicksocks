@@ -1,6 +1,6 @@
 use crate::{
     frame::WebsocketFrame,
-    streams::{tcp, Stream, ssl},
+    streams::{ssl, tcp, Stream},
     TcpStream,
 };
 use futures::SinkExt;
@@ -13,13 +13,12 @@ use tokio::{
 };
 use tokio_util::codec::Framed;
 
-use std::path::Path;
-use std::io::{self, BufReader};
 use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 
-use tokio_rustls::rustls::internal::pemfile::{ certs, rsa_private_keys };
-use tokio_rustls::{TlsAcceptor, server::TlsStream};
-use tokio_rustls::rustls::{ Certificate, NoClientAuth, PrivateKey, ServerConfig };
+use native_tls::{Identity, TlsAcceptor};
+use tokio_tls::TlsStream;
 
 pub struct Websocket<T, R, F>
 where
@@ -76,17 +75,15 @@ where
     F: Fn(Vec<u8>) -> R + Send + Sync + 'static,
     R: Future<Output = Vec<u8>> + Send + Sync,
 {
-    pub async fn build(addr: &str, callback: F, cert: &str, key: &str) -> Self {
+    pub async fn build(addr: &str, callback: F, cert: &str) -> Self {
         let addr: SocketAddr = addr.parse().unwrap();
 
-        let certs = load_certs(Path::new(cert));
-        let mut keys = load_keys(Path::new(key));
+//        let identity = load_certs(Path::new(cert));
+        let identity = include_bytes!("../identity.pfx");
+        let config = Identity::from_pkcs12(identity.as_ref(), "").unwrap();
 
-        let mut config = ServerConfig::new(NoClientAuth::new());
-        config.set_single_cert(certs, keys.remove(0))
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)).unwrap();
-
-        let acceptor = TlsAcceptor::from(Arc::new(config));
+        let acceptor = TlsAcceptor::builder(config).build().unwrap();
+        let acceptor = tokio_tls::TlsAcceptor::from(acceptor);
         let sock = ssl::Ssl::new(addr, acceptor).await.unwrap();
 
         Self {
@@ -121,12 +118,10 @@ where
     }
 }
 
-fn load_certs(path: &Path) -> Vec<Certificate> {
-    certs(&mut BufReader::new(File::open(path).unwrap()))
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid cert"))
-        .unwrap()
-}
+fn load_certs(path: &Path) -> Vec<u8> {
+    let mut f = File::open(path).unwrap();
+    let mut buf = Vec::new();
 
-fn load_keys(path: &Path) -> Vec<PrivateKey> {
-    rsa_private_keys(&mut BufReader::new(File::open(path).unwrap())).unwrap()
+    f.read_to_end(&mut buf);
+    buf
 }

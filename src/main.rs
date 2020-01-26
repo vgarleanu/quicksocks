@@ -2,8 +2,8 @@
 use async_trait::async_trait;
 use quicksockets::websocket::Websocket;
 use quicksockets::SocketCallback;
-use quicksockets::TcpStream;
 use quicksockets::SslStream;
+use quicksockets::TcpStream;
 
 struct Test;
 
@@ -33,12 +33,15 @@ async fn main() {
         .await;
     */
 
-    let mut socket =
-        Websocket::<SslStream, _, _>::build("127.0.0.1:4545", async move |x| -> Vec<u8> {
+    let mut socket = Websocket::<SslStream, _, _>::build(
+        "127.0.0.1:4545",
+        async move |x| -> Vec<u8> {
             println!("{:?}", x);
             vec![0]
-        }, "./sample.pem", "./sample.rsa")
-        .await;
+        },
+        "../indentity.pfx",
+    )
+    .await;
 
     socket.listen().await;
 }
