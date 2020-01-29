@@ -1,12 +1,9 @@
 use crate::{
     frame::WebsocketFrame,
     streams::{ssl, tcp, Stream},
-    TcpStream,
+    Connection, SocketCallback, TcpStream,
 };
-use futures::SinkExt;
-use std::future::Future;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use futures::{executor::block_on, SinkExt};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     stream::StreamExt,
@@ -15,7 +12,9 @@ use tokio_util::codec::Framed;
 
 use std::fs::File;
 use std::io::Read;
+use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::Arc;
 
 use native_tls::{Identity, TlsAcceptor};
 use tokio_tls::TlsStream;
@@ -23,21 +22,18 @@ use tokio_tls::TlsStream;
 pub struct Websocket<T, R, F>
 where
     T: AsyncRead + AsyncWrite,
-    F: Fn(Vec<u8>) -> R,
-    R: Future<Output = Vec<u8>>,
+    R: (Fn(Connection<T>) -> Box<F>) + Send + 'static,
+    F: SocketCallback + Send + 'static,
 {
-    callback: Arc<F>,
+    callback: Arc<R>,
     sock: Box<dyn Stream<Out = T>>,
 }
 
-impl<R, F> Websocket<TcpStream, R, F>
-where
-    F: Fn(Vec<u8>) -> R + Send + Sync + 'static,
-    R: Future<Output = Vec<u8>> + Send + Sync,
-{
-    pub async fn build(addr: &str, callback: F) -> Self {
+/*
+impl Websocket<TcpStream> {
+    pub fn build(addr: &str, callback: Box<dyn SocketCallback>) -> Self {
         let addr: SocketAddr = addr.parse().unwrap();
-        let sock = tcp::Tcp::new(addr).await.unwrap();
+        let sock = block_on(tcp::Tcp::new(addr)).unwrap();
 
         Self {
             callback: Arc::new(callback),
@@ -50,10 +46,6 @@ where
             if let Ok(mut client) = self.sock.accept().await {
                 let callback = self.callback.clone();
                 tokio::spawn(async move {
-                    if let Err(_) = client.handshake().await {
-                        return;
-                    }
-
                     let mut framed_sock = Framed::new(client, WebsocketFrame);
 
                     loop {
@@ -69,22 +61,23 @@ where
         }
     }
 }
+*/
 
 impl<R, F> Websocket<TlsStream<TcpStream>, R, F>
 where
-    F: Fn(Vec<u8>) -> R + Send + Sync + 'static,
-    R: Future<Output = Vec<u8>> + Send + Sync,
+    R: (Fn(Connection<TlsStream<TcpStream>>) -> Box<F>) + Send + Sync + 'static,
+    F: SocketCallback + Send + Sync + 'static,
 {
-    pub async fn build(addr: &str, callback: F, cert: &str) -> Self {
+    pub fn build(addr: &str, callback: R, cert: &str) -> Self {
         let addr: SocketAddr = addr.parse().unwrap();
 
-//        let identity = load_certs(Path::new(cert));
+        //        let identity = load_certs(Path::new(cert));
         let identity = include_bytes!("../identity.pfx");
         let config = Identity::from_pkcs12(identity.as_ref(), "").unwrap();
 
         let acceptor = TlsAcceptor::builder(config).build().unwrap();
         let acceptor = tokio_tls::TlsAcceptor::from(acceptor);
-        let sock = ssl::Ssl::new(addr, acceptor).await.unwrap();
+        let sock = block_on(ssl::Ssl::new(addr, acceptor)).unwrap();
 
         Self {
             callback: Arc::new(callback),
@@ -94,20 +87,18 @@ where
 
     pub async fn listen(&mut self) {
         loop {
+            // sock.accept automatically does the handshake
             if let Ok(mut client) = self.sock.accept().await {
                 println!("Got client");
                 let callback = self.callback.clone();
                 tokio::spawn(async move {
-                    if let Err(_) = client.handshake().await {
-                        return;
-                    }
-
-                    let mut framed_sock = Framed::new(client, WebsocketFrame);
+                    let mut c = (callback)(client.clone());
+                    c.on_open().await;
 
                     loop {
-                        if let Some(Ok(frame)) = framed_sock.next().await {
+                        if let Some(Ok(frame)) = client.next().await {
                             println!("{:?}", frame);
-                            if let Err(_) = framed_sock.send(frame).await {
+                            if let Err(_) = client.send(frame).await {
                                 break;
                             }
                         }
@@ -122,6 +113,6 @@ fn load_certs(path: &Path) -> Vec<u8> {
     let mut f = File::open(path).unwrap();
     let mut buf = Vec::new();
 
-    f.read_to_end(&mut buf);
+    f.read_to_end(&mut buf).unwrap();
     buf
 }

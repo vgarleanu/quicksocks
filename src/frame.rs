@@ -56,6 +56,34 @@ pub struct Frame {
     message: String,
 }
 
+impl Frame {
+    pub fn new(message: String) -> Self {
+        Self {
+            message: message.clone(),
+            length: message.len() as u64,
+            data: message.as_bytes().to_vec(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Frame {
+            fin: true,
+            rsv1: false,
+            rsv2: false,
+            rsv3: false,
+            opcode: Opcode::Text,
+            masked: false,
+            length: 0,
+            key: vec![0, 0, 0, 0],
+            data: vec![],
+            message: "".into(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct WebsocketFrame;
 

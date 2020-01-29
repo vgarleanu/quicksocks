@@ -23,13 +23,10 @@ impl Ssl {
 #[async_trait]
 impl Stream for Ssl {
     type Out = TlsStream<tokio::net::TcpStream>;
-    // Inside the rustls impl we want to also do a keyexchange here
     async fn accept(&mut self) -> Result<Connection<Self::Out>, Box<dyn std::error::Error>> {
         let (stream, _) = self.sock.accept().await?;
         let acceptor = self.acceptor.clone();
 
-        Ok(Connection {
-            stream: acceptor.accept(stream).await?,
-        })
+        Ok(Connection::new(acceptor.accept(stream).await?).await?)
     }
 }
