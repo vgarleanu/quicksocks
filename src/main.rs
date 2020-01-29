@@ -44,7 +44,7 @@ async fn main() {
 
     let mut socket = Websocket::<SslStream, _, _>::build(
         "127.0.0.1:4545",
-        |x| Box::new(Test { conn: x }),
+        |x| Test { conn: x },
         "../indentity.pfx",
     );
 

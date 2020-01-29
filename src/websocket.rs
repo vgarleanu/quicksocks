@@ -1,4 +1,5 @@
 use crate::{
+    message::Message,
     frame::WebsocketFrame,
     streams::{ssl, tcp, Stream},
     Connection, SocketCallback, TcpStream,
@@ -22,7 +23,7 @@ use tokio_tls::TlsStream;
 pub struct Websocket<T, R, F>
 where
     T: AsyncRead + AsyncWrite,
-    R: (Fn(Connection<T>) -> Box<F>) + Send + 'static,
+    R: (Fn(Connection<T>) -> F) + Send + 'static,
     F: SocketCallback + Send + 'static,
 {
     callback: Arc<R>,
@@ -65,7 +66,7 @@ impl Websocket<TcpStream> {
 
 impl<R, F> Websocket<TlsStream<TcpStream>, R, F>
 where
-    R: (Fn(Connection<TlsStream<TcpStream>>) -> Box<F>) + Send + Sync + 'static,
+    R: (Fn(Connection<TlsStream<TcpStream>>) -> F) + Send + Sync + 'static,
     F: SocketCallback + Send + Sync + 'static,
 {
     pub fn build(addr: &str, callback: R, cert: &str) -> Self {
@@ -97,6 +98,7 @@ where
 
                     loop {
                         if let Some(Ok(frame)) = client.next().await {
+                            c.on_message(Message::from_frame(&frame)).await;
                             println!("{:?}", frame);
                             if let Err(_) = client.send(frame).await {
                                 break;

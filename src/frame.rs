@@ -1,3 +1,4 @@
+use crate::message::Message;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use bytes::{BytesMut, *};
 use std::io::Cursor;
@@ -64,6 +65,10 @@ impl Frame {
             data: message.as_bytes().to_vec(),
             ..Default::default()
         }
+    }
+
+    pub fn get_msg(&self) -> String {
+        self.message.clone()
     }
 }
 
