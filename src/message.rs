@@ -23,3 +23,9 @@ impl Into<Frame> for Message {
         Frame::new(self.data.into())
     }
 }
+
+impl ToString for Message {
+    fn to_string(&self) -> String {
+        self.data.clone()
+    }
+}

@@ -27,8 +27,7 @@ pub struct Response {
 
 #[async_trait]
 pub trait SocketCallback {
-    async fn on_open(&mut self);
-
-    async fn on_close(&mut self, req: Request);
-    async fn on_message(&mut self, frame: Message);
+    async fn on_open(&mut self) {}
+    async fn on_close(&mut self, close_code: Option<u32>, reason: String);
+    async fn on_message(&mut self, frame: Message) {}
 }

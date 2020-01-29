@@ -1,4 +1,5 @@
 use crate::frame::Frame;
+use crate::message::Message;
 use crate::frame::WebsocketFrame;
 use core::{
     pin::Pin,
@@ -43,7 +44,7 @@ impl<T: Unpin + AsyncRead + AsyncWrite + Send> Connection<T> {
         lock.next().await
     }
 
-    async fn handshake(stream: &mut T) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn handshake(stream: &mut T) -> Result<(), Box<dyn std::error::Error>> {
         let mut buf: [u8; 1024] = [0; 1024];
         let _ = stream.read(&mut buf).await?;
 
@@ -72,7 +73,12 @@ impl<T: Unpin + AsyncRead + AsyncWrite + Send> Connection<T> {
         Ok(())
     }
 
-    pub async fn send(&mut self, f: Frame) -> Result<(), std::io::Error> {
+    pub async fn send(&mut self, m: Message) -> Result<(), std::io::Error> {
+        let mut lock = self.stream.lock().await;
+        lock.send(m.into()).await
+    }
+
+    pub async fn send_raw(&mut self, f: Frame) -> Result<(), std::io::Error> {
         let mut lock = self.stream.lock().await;
         lock.send(f).await
     }

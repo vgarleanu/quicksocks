@@ -1,4 +1,3 @@
-use crate::message::Message;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use bytes::{BytesMut, *};
 use std::io::Cursor;
@@ -49,12 +48,13 @@ pub struct Frame {
     rsv1: bool,
     rsv2: bool,
     rsv3: bool,
-    opcode: Opcode,
+    pub opcode: Opcode,
     masked: bool,
     length: u64,
+    pub reason: Option<u32>,
     key: Vec<u8>,
     data: Vec<u8>,
-    message: String,
+    pub message: String,
 }
 
 impl Frame {
@@ -82,6 +82,7 @@ impl Default for Frame {
             opcode: Opcode::Text,
             masked: false,
             length: 0,
+            reason: None,
             key: vec![0, 0, 0, 0],
             data: vec![],
             message: "".into(),
@@ -121,7 +122,7 @@ impl Decoder for WebsocketFrame {
         let rsv1 = first & 0x40 != 0;
         let rsv2 = first & 0x20 != 0;
         let rsv3 = first & 0x10 != 0;
-        let opcode = first & 0x0f;
+        let opcode: Opcode = (first & 0x0f).into();
         let masked = second & 0x80 != 0;
 
         if !masked {
@@ -146,6 +147,19 @@ impl Decoder for WebsocketFrame {
         let key = &src[pos..pos + 4];
         pos += 4;
 
+        let reason = match opcode {
+            Opcode::Close => {
+                if length > 0 {
+                    let mut rdr = Cursor::new(&src[pos..pos + 2]);
+                    pos += 2;
+                    Some(rdr.read_u32::<BigEndian>()? as u32)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
         let data = &src[pos..pos + length as usize];
         let decoded = WebsocketFrame::mutate(data, key);
         let string_form = String::from_utf8_lossy(&decoded);
@@ -155,9 +169,10 @@ impl Decoder for WebsocketFrame {
             rsv1,
             rsv2,
             rsv3,
-            opcode: opcode.into(),
+            opcode: opcode,
             masked,
             length,
+            reason,
             key: key.to_vec(),
             data: decoded.clone(),
             message: string_form.as_ref().to_string(),

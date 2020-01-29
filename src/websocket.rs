@@ -1,6 +1,6 @@
 use crate::{
+    frame::Opcode,
     message::Message,
-    frame::WebsocketFrame,
     streams::{ssl, tcp, Stream},
     Connection, SocketCallback, TcpStream,
 };
@@ -88,20 +88,22 @@ where
 
     pub async fn listen(&mut self) {
         loop {
-            // sock.accept automatically does the handshake
             if let Ok(mut client) = self.sock.accept().await {
-                println!("Got client");
                 let callback = self.callback.clone();
+
                 tokio::spawn(async move {
                     let mut c = (callback)(client.clone());
                     c.on_open().await;
 
                     loop {
                         if let Some(Ok(frame)) = client.next().await {
-                            c.on_message(Message::from_frame(&frame)).await;
-                            println!("{:?}", frame);
-                            if let Err(_) = client.send(frame).await {
-                                break;
+                            match frame.opcode {
+                                Opcode::Close => {
+                                    c.on_close(frame.reason, frame.message).await;
+                                    break;
+                                }
+                                Opcode::Text => c.on_message(Message::from_frame(&frame)).await,
+                                _ => {}
                             }
                         }
                     }
