@@ -67,6 +67,20 @@ impl Frame {
         }
     }
 
+    pub fn ping() -> Self {
+        Self {
+            opcode: Opcode::Ping,
+            ..Default::default()
+        }
+    }
+
+    pub fn pong() -> Self {
+        Self {
+            opcode: Opcode::Pong,
+            ..Default::default()
+        }
+    }
+
     pub fn get_msg(&self) -> String {
         self.message.clone()
     }
@@ -169,7 +183,7 @@ impl Decoder for WebsocketFrame {
             rsv1,
             rsv2,
             rsv3,
-            opcode: opcode,
+            opcode,
             masked,
             length,
             reason,
@@ -190,7 +204,7 @@ impl Encoder for WebsocketFrame {
     // TODO: Add support for chunked frames.
     fn encode(&mut self, frame: Self::Item, buf: &mut BytesMut) -> Result<(), Self::Error> {
         let mut frame = frame;
-        let mut one = 0u8 | 0x80;
+        let mut one = 0x80;
         if frame.rsv1 {
             one |= 0x40;
         }

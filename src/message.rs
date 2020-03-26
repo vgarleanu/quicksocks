@@ -20,7 +20,7 @@ impl Message {
 
 impl Into<Frame> for Message {
     fn into(self) -> Frame {
-        Frame::new(self.data.into())
+        Frame::new(self.data)
     }
 }
 

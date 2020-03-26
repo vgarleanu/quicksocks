@@ -23,6 +23,7 @@ impl Ssl {
 #[async_trait]
 impl Stream for Ssl {
     type Out = TlsStream<tokio::net::TcpStream>;
+
     async fn accept(&mut self) -> Result<Connection<Self::Out>, Box<dyn std::error::Error>> {
         let (stream, _) = self.sock.accept().await?;
         let acceptor = self.acceptor.clone();

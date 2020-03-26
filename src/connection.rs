@@ -1,18 +1,14 @@
-use crate::frame::Frame;
-use crate::message::Message;
-use crate::frame::WebsocketFrame;
-use core::{
-    pin::Pin,
-    task::{Context, Poll},
+use crate::{
+    frame::{Frame, WebsocketFrame},
+    message::Message,
 };
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
-use futures::lock::Mutex;
-use futures::{executor::block_on, SinkExt};
+use crypto::{digest::Digest, sha1::Sha1};
+use futures::{lock::Mutex, SinkExt};
 use httparse::{Request, EMPTY_HEADER};
+
 use std::sync::Arc;
-use tokio::prelude::*;
-use tokio::stream::StreamExt;
+
+use tokio::{prelude::*, stream::StreamExt};
 use tokio_util::codec::Framed;
 
 pub struct Connection<T: AsyncRead + AsyncWrite> {
@@ -31,7 +27,8 @@ impl<T: Unpin + AsyncRead + AsyncWrite + Send> Clone for Connection<T> {
 
 impl<T: Unpin + AsyncRead + AsyncWrite + Send> Connection<T> {
     pub async fn new(mut stream: T) -> Result<Self, Box<dyn std::error::Error>> {
-        let _ = Self::handshake(&mut stream).await?;
+        Self::handshake(&mut stream).await?;
+
         Ok(Self {
             stream: Arc::new(Mutex::new(Framed::new(stream, WebsocketFrame))),
             route: "/".into(),
