@@ -1,26 +1,121 @@
+//! Quicksockets
+//! Quicksockets is a purely async implementation of Websockets as described in RFC6455. This library
+//! currently only comes with a server implementation but a client one is planned. The server
+//! supports SSL and Raw TCP.
+//!
+//! # Example
+//! To use quicksockets you must create a handler struct which implements the [`SocketCallback`]
+//! trait.
+//!
+//! ```rust no_run
+//! use quicksockets::{prelude::*, Websocket};
+//!
+//! struct Example {
+//!     conn: Connection<TcpStream>,
+//! }
+//!
+//! #[async_trait]
+//! impl SocketCallback for Example {
+//!     async fn on_message(&mut self, frame: Message) {
+//!         let msg = frame.to_string();
+//!         println!("Client sent: {}", msg);
+//!
+//!         self.conn.send(msg).await.unwrap();
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Websocket::<TcpStream, _, _>::build("127.0.0.1:4545", |x| Example { conn: x })
+//!         .listen()
+//!         .await;
+//! }
+//! ```
+//!
+//! # Example SSL
+//! ```rust no_run
+//! use quicksockets::{prelude::*, Websocket};
+//!
+//! struct Example {
+//!     conn: Connection<SslStream>,
+//! }
+//!
+//! #[async_trait]
+//! impl SocketCallback for Example {
+//!     async fn on_message(&mut self, frame: Message) {
+//!         let msg = frame.to_string();
+//!         println!("Client sent: {}", msg);
+//!         
+//!         self.conn.send(msg).await.unwrap();
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Websocket::<SslStream, _, _>::build("127.0.0.1:4545", Example { conn: x })
+//!         .listen()
+//!         .await;
+//! }
+//! ```
+//!
+//! # Example socket agnostic
+//! Sometimes you may want to create one handler that can work with both [`TcpStream`] and
+//! [`SslStream`]. This is easy to do.
+//!
+//! ```rust no_run
+//! use quicksockets::{prelude::*, Websocket};
+//!
+//! struct Example<T: AsyncRead + AsyncWrite> {
+//!     conn: Connection<T>,
+//! }
+//!
+//! #[async_trait]
+//! impl<T: AsyncRead + AsyncWrite + Send + Unpin> SocketCallback for Example<T> {
+//!     async fn on_message(&mut self, frame: Message) {
+//!         let msg = frame.to_string();
+//!         println!("Client sent: {}", msg);
+//!
+//!         self.conn.send(msg).await.unwrap();
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Websocket::<SslStream, _, _>::build("127.0.0.1:4545", Example { conn: x })
+//!         .listen()
+//!         .await;
+//!
+//!     Websocket::<TcpStream, _, _>::build("127.0.0.1:4646", Example { conn: x })
+//!         .listen()
+//!         .await;
+//! }
+//! ```
+//!
+//! [`SocketCallback`]: trait.SocketCallback.html
+//! [`TcpStream`]: type.TcpStream.html
+//! [`SslStream`]: type.SslStream.html
+#![feature(type_ascription)]
 pub mod connection;
 pub mod frame;
 pub mod message;
 pub mod streams;
 
-use async_trait::async_trait;
-use connection::Connection;
-use message::Message;
-use tokio::net;
-use tokio::prelude::{AsyncRead, AsyncWrite};
-
 use crate::{
     frame::Opcode,
     streams::{ssl, tcp, Stream},
 };
-
+use async_trait::async_trait;
+use connection::Connection;
 use futures::executor::block_on;
-
-use std::{fs::File, io::Read, net::SocketAddr, sync::Arc};
-
+use message::Message;
 use native_tls::{Identity, TlsAcceptor};
+use std::{fs::File, io::Read, net::SocketAddr, sync::Arc};
+use tokio::net;
+use tokio::prelude::{AsyncRead, AsyncWrite};
 use tokio_tls::TlsStream;
 
+/// This module contains all the essential imports a quicksockets app may need. This should be
+/// included as a prelude in any project using quicksockets.
 pub mod prelude {
     pub use super::{
         connection::Connection, message::Message, SocketCallback, SslStream, TcpStream,
@@ -29,7 +124,9 @@ pub mod prelude {
     pub use tokio::prelude::{AsyncRead, AsyncWrite};
 }
 
+/// Describes a TCP Connection Stream. If this is used all traffic will not be encrypted.
 pub type TcpStream = net::TcpStream;
+/// Describes a SSL encrypted Connection Stream. If this is used, all traffic will be encrypted.
 pub type SslStream = tokio_tls::TlsStream<TcpStream>;
 
 pub struct Request {
@@ -61,6 +158,7 @@ where
     sock: Box<dyn Stream<Out = T>>,
 }
 
+/// Websocket implementation over TcpStream.
 impl<R, F> Websocket<TcpStream, R, F>
 where
     R: (Fn(Connection<TcpStream>) -> F) + Send + Sync + 'static,

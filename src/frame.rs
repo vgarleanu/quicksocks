@@ -11,7 +11,7 @@ pub enum Opcode {
     Close,
     Ping,
     Pong,
-    Unknown,
+    Other(u8),
 }
 
 impl From<u8> for Opcode {
@@ -23,7 +23,7 @@ impl From<u8> for Opcode {
             0x08 => Self::Close,
             0x09 => Self::Ping,
             0xA0 => Self::Pong,
-            _ => Self::Unknown,
+            _ => Self::Other(lh),
         }
     }
 }
@@ -37,7 +37,64 @@ impl Into<u8> for Opcode {
             Self::Close => 0x08,
             Self::Ping => 0x09,
             Self::Pong => 0xA0,
-            Self::Unknown => 0xB0,
+            Self::Other(other) => other,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CloseCode {
+    NormalClosure,
+    GoingAway,
+    ProtocolError,
+    UnsupportedData,
+    NoStatusRcvd,
+    AbnormalClosure,
+    InvalidFramePayloadData,
+    PolicyViolation,
+    MsgTooBig,
+    MandatoryExt,
+    InternalServerError,
+    TlsHandshake,
+    Other(u16),
+}
+
+impl From<u16> for CloseCode {
+    fn from(lh: u16) -> Self {
+        match lh {
+            1000 => Self::NormalClosure,
+            1001 => Self::GoingAway,
+            1002 => Self::ProtocolError,
+            1003 => Self::UnsupportedData,
+            1005 => Self::NoStatusRcvd,
+            1006 => Self::AbnormalClosure,
+            1007 => Self::InvalidFramePayloadData,
+            1008 => Self::PolicyViolation,
+            1009 => Self::MsgTooBig,
+            1010 => Self::MandatoryExt,
+            1011 => Self::InternalServerError,
+            1015 => Self::TlsHandshake,
+            _ => Self::Other(lh),
+        }
+    }
+}
+
+impl Into<u16> for CloseCode {
+    fn into(self) -> u16 {
+        match self {
+            Self::NormalClosure => 1000,
+            Self::GoingAway => 1001,
+            Self::ProtocolError => 1002,
+            Self::UnsupportedData => 1003,
+            Self::NoStatusRcvd => 1005,
+            Self::AbnormalClosure => 1006,
+            Self::InvalidFramePayloadData => 1007,
+            Self::PolicyViolation => 1008,
+            Self::MsgTooBig => 1009,
+            Self::MandatoryExt => 1010,
+            Self::InternalServerError => 1011,
+            Self::TlsHandshake => 1015,
+            Self::Other(other) => other,
         }
     }
 }
@@ -217,7 +274,7 @@ impl Encoder for WebsocketFrame {
             one |= 0x10;
         }
 
-        one |= frame.opcode as u8;
+        one |= frame.opcode.into(): u8;
 
         let mut two = 0u8;
         frame.masked = false;

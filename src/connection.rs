@@ -5,9 +5,7 @@ use crate::{
 use crypto::{digest::Digest, sha1::Sha1};
 use futures::{lock::Mutex, SinkExt};
 use httparse::{Request, EMPTY_HEADER};
-
 use std::sync::Arc;
-
 use tokio::{prelude::*, stream::StreamExt};
 use tokio_util::codec::Framed;
 
@@ -43,11 +41,12 @@ impl<T: Unpin + AsyncRead + AsyncWrite + Send> Connection<T> {
 
     pub(crate) async fn handshake(stream: &mut T) -> Result<(), Box<dyn std::error::Error>> {
         let mut buf: [u8; 1024] = [0; 1024];
-        let _ = stream.read(&mut buf).await?;
+        stream.read(&mut buf).await?;
 
         let mut headers = [EMPTY_HEADER; 16];
         let mut req = Request::new(&mut headers);
-        let _ = req.parse(&buf)?;
+        req.parse(&buf)?;
+
         let mut key: Vec<String> = req
             .headers
             .iter()

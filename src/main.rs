@@ -1,11 +1,11 @@
 use quicksockets::{prelude::*, Websocket};
 
-struct Test<T: AsyncRead + AsyncWrite> {
-    conn: Connection<T>,
+struct Test {
+    conn: Connection<SslStream>,
 }
 
 #[async_trait]
-impl<T: AsyncRead + AsyncWrite + Send + Unpin> SocketCallback for Test<T> {
+impl SocketCallback for Test {
     async fn on_open(&mut self) {
         println!("On open");
     }
